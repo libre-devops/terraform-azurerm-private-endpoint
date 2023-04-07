@@ -33,6 +33,15 @@ module "network" {
     "sn1-${module.network.vnet_name}" = ["Microsoft.Storage", "Microsoft.Keyvault", "Microsoft.Sql", "Microsoft.Web", "Microsoft.AzureActiveDirectory"],
     "sn2-${module.network.vnet_name}" = ["Microsoft.Storage", "Microsoft.Keyvault", "Microsoft.Sql", "Microsoft.Web", "Microsoft.AzureActiveDirectory"]
   }
+
+  subnet_delegation = {
+    "sn1-${module.network.vnet_name}" = {
+      "Microsoft.Web/serverFarms" = {
+        service_name    = "Microsoft.Web/serverFarms"
+        service_actions = ["Microsoft.Network/virtualNetworks/subnets/action"]
+      }
+    }
+  }
 }
 
 # Create a NSG with an explict deny at 4096, since this environment needs 5 NSGs, count is set to 5
@@ -174,8 +183,8 @@ module "fnc_app" {
   app_insights_name                     = "appi-${var.short}-${var.loc}-${terraform.workspace}-01"
   app_insights_type                     = "web"
 
-  #  function_app_vnet_integration_enabled = true
-  #  function_app_vnet_integration_subnet_id = element(values(module.network.subnets_ids), 0)
+  function_app_vnet_integration_enabled   = true
+  function_app_vnet_integration_subnet_id = element(values(module.network.subnets_ids), 0)
 
 
   app_settings = {
