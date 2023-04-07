@@ -39,7 +39,7 @@ module "network" {
 
 # Create a NSG with an explict deny at 4096, since this environment needs 5 NSGs, count is set to 5
 module "nsg" {
-  source = "registry.terraform.io/libre-devops/nsg/azurerm"
+  source   = "registry.terraform.io/libre-devops/nsg/azurerm"
   count    = 2
   rg_name  = module.rg.rg_name
   location = module.rg.rg_location
@@ -176,8 +176,8 @@ module "fnc_app" {
   app_insights_name                     = "appi-${var.short}-${var.loc}-${terraform.workspace}-01"
   app_insights_type                     = "web"
 
-#  function_app_vnet_integration_enabled = true
-#  function_app_vnet_integration_subnet_id = element(values(module.network.subnets_ids), 0)
+  #  function_app_vnet_integration_enabled = true
+  #  function_app_vnet_integration_subnet_id = element(values(module.network.subnets_ids), 0)
 
 
   app_settings = {
@@ -221,13 +221,13 @@ module "private_endpoint" {
   tags     = module.rg.rg_tags
 
   private_endpoint_name = "pep-${var.short}-${var.loc}-${terraform.workspace}-01"
-  subnet_id = element(values(module.network.subnets_ids), 1)
+  subnet_id             = element(values(module.network.subnets_ids), 1)
 
   private_service_connection = {
-    name = "pvsvccon-${var.short}-${var.loc}-${terraform.workspace}-01"
-    is_manual_connection = false
+    name                           = "pvsvccon-${var.short}-${var.loc}-${terraform.workspace}-01"
+    is_manual_connection           = false
     private_connection_resource_id = module.fnc_app.fnc_app_id
-    subresource_names = ["sites"]
+    subresource_names              = ["sites"]
   }
 }
 ```
