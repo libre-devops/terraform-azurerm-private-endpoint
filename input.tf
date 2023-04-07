@@ -83,7 +83,7 @@ variable "sub_resource_names" {
     "Microsoft.ServiceBus/namespaces"                        = "namespace"
     "Microsoft.SignalRService/SignalR"                       = "signalr"
     "Microsoft.SignalRService/webPubSub"                     = "webpubsub"
-    "Microsoft.Sql/servers"                                  = "SQL Server (sqlServer)"
+    "Microsoft.Sql/servers"                                  = "sqlServer"
     "Microsoft.Storage/storageAccounts"                      = "blob, blob_secondary, table, table_secondary, queue, queue_secondary, file, file_secondary, web, web_secondary, dfs, dfs_secondary"
     "Microsoft.StorageSync/storageSyncServices"              = "File Sync Service"
     "Microsoft.Synapse/privateLinkHubs"                      = "web"
