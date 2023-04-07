@@ -212,7 +212,7 @@ module "fnc_app" {
 }
 
 module "private_endpoint" {
-  source = "../../"
+  source = "libre-devops/private-endpoint/azurerm"
 
   rg_name  = module.rg.rg_name
   location = module.rg.rg_location
