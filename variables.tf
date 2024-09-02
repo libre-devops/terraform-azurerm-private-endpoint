@@ -1,47 +1,34 @@
-variable "custom_network_interface_name" {
-  type        = string
-  description = "The name of your private endpoint NIC"
-  default     = null
+variable "private_endpoints" {
+  description = "The databricks workspaces to create"
+  type = list(object({
+    private_endpoint_name = string
+    location             = optional(string, "uksouth")
+    rg_name              = string
+    subnet_id            = string
+    custom_network_interface_name = optional(string, null)
+    tags                 = optional(map(string), {})
+    private_service_connection = optional(object({
+      name                              = optional(string)
+      is_manual_connection              = optional(bool, true)
+      private_connection_resource_id    = optional(string)
+      private_connection_resource_alias = optional(string)
+      subresource_names                 = optional(list(string))
+      request_message                   = optional(string)
+    }))
+    private_dns_zone_group = optional(object({
+      name                 = optional(string)
+      private_dns_zone_ids = optional(list(string))
+    }))
+    ip_configuration = optional(object({
+      name               = optional(string)
+      private_ip_address = optional(string)
+      subresource_name   = optional(string)
+      member_name        = optional(string)
+  }))
+  }))
 }
 
-variable "ip_configuration" {
-  type        = any
-  description = "The ip configuration block"
-  default     = null
-}
-
-variable "location" {
-  description = "The location for this resource to be put in"
-  type        = string
-}
-
-variable "private_dns_zone_group" {
-  type        = any
-  description = "The private_dns_zone_group block"
-  default     = null
-}
-
-variable "private_endpoint_name" {
-  type        = string
-  description = "The name of the private endpoint"
-}
-
-variable "private_service_connection" {
-  type        = any
-  description = "The private_service_connection block"
-  default     = {}
-}
-
-variable "rg_name" {
-  description = "The name of the resource group, this module does not create a resource group, it is expecting the value of a resource group already exists"
-  type        = string
-  validation {
-    condition     = length(var.rg_name) > 1 && length(var.rg_name) <= 24
-    error_message = "Resource group name is not valid."
-  }
-}
-
-variable "sub_resource_names" {
+variable "subresource_names" {
   type        = map(string)
   description = "The sub resource names of private endpoints found at https://learn.microsoft.com/en-gb/azure/private-link/private-endpoint-overview#private-link-resource, not used, but provided for lookup option"
   default = {
@@ -59,7 +46,9 @@ variable "sub_resource_names" {
     "Microsoft.Kusto/clusters"                               = "cluster"
     "Microsoft.DBforMariaDB/servers"                         = "mariadbServer"
     "Microsoft.DBforMySQL/servers"                           = "mysqlServer"
+    "Microsoft.DBforMySQL/flexibleServers"                   = "mysqlServer"
     "Microsoft.DBforPostgreSQL/servers"                      = "postgresqlServer"
+    "Microsoft.DBforPostgreSQL/flexibleServers"              = "postgresqlServer"
     "Microsoft.Devices/provisioningServices"                 = "iotDps"
     "Microsoft.Devices/IotHubs"                              = "iotHub"
     "Microsoft.IoTCentral/IoTApps"                           = "IoTApps"
@@ -72,6 +61,7 @@ variable "sub_resource_names" {
     "Microsoft.Keyvault/managedHSMs"                         = "HSM"
     "Microsoft.KeyVault/vaults"                              = "vault"
     "Microsoft.MachineLearningServices/workspaces"           = "amlworkspace"
+    "Microsoft.MachineLearningServices/registries"           = "amlregistry"
     "Microsoft.Migrate/assessmentProjects"                   = "project"
     "Microsoft.Network/applicationgateways"                  = "application gateway"
     "Microsoft.Network/privateLinkServices"                  = "empty"
@@ -84,6 +74,7 @@ variable "sub_resource_names" {
     "Microsoft.SignalRService/SignalR"                       = "signalr"
     "Microsoft.SignalRService/webPubSub"                     = "webpubsub"
     "Microsoft.Sql/servers"                                  = "sqlServer"
+    "Microsoft.Sql/managedInstances"                         = "managedInstance"
     "Microsoft.Storage/storageAccounts"                      = "blob, blob_secondary, table, table_secondary, queue, queue_secondary, file, file_secondary, web, web_secondary, dfs, dfs_secondary"
     "Microsoft.StorageSync/storageSyncServices"              = "File Sync Service"
     "Microsoft.Synapse/privateLinkHubs"                      = "web"
@@ -95,19 +86,11 @@ variable "sub_resource_names" {
     "Microsoft.Authorization/resourceManagementPrivateLinks" = "ResourceManagement"
     "Microsoft.Databricks/workspaces"                        = "databricks_ui_api, browser_authentication"
     "Microsoft.Insights/privatelinkscopes"                   = "azuremonitor"
-  }
-}
-
-variable "subnet_id" {
-  type        = string
-  description = "The ID of the subnet the private endpoint needs to connect"
-}
-
-variable "tags" {
-  type        = map(string)
-  description = "A map of the tags to use on the resources that are deployed with this module."
-
-  default = {
-    source = "terraform"
+    "Microsoft.DocumentDb/mongoClusters"                     = "mongoCluster"
+    "Microsoft.DBforPostgreSQL/serverGroupsv2"               = "coordinator"
+    "Microsoft.DesktopVirtualization/hostpools"              = "connection"
+    "Microsoft.DesktopVirtualization/workspaces"             = "feed"
+    "Microsoft.Attestation/attestationProviders"             = "standard"
+    "Microsoft.DeviceUpdate/accounts"                        = "DeviceUpdate"
   }
 }
