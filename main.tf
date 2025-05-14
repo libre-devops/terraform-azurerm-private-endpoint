@@ -11,30 +11,45 @@ resource "azurerm_private_endpoint" "this" {
   dynamic "private_service_connection" {
     for_each = each.value.private_service_connection != null ? [each.value.private_service_connection] : []
     content {
-      name                              = lookup(private_service_connection.value, "name", null) == null ? "pvsvccon-${each.value.private_endpoint_name}" : null
-      is_manual_connection              = lookup(private_service_connection.value, "is_manual_connection", true)
-      private_connection_resource_id    = lookup(private_service_connection.value, "private_connection_resource_id", null)
-      private_connection_resource_alias = lookup(private_service_connection.value, "private_connection_resource_alias", null)
-      subresource_names                 = lookup(private_service_connection.value, "subresource_names", [])
-      request_message                   = private_service_connection.value.is_manual_connection && lookup(private_service_connection.value, "request_message", null) == null ? "This is a manual private endpoint connection for ${each.value.private_endpoint_name}" : lookup(private_service_connection.value, "request_message", null)
+      name                              = private_service_connection.value.name == null ? "pvsvccon-${each.value.private_endpoint_name}" : null
+      is_manual_connection              = private_service_connection.value.is_manual_connection
+      private_connection_resource_id    = private_service_connection.value.private_connection_resource_id
+      private_connection_resource_alias = private_service_connection.value.private_connection_resource_alias
+      subresource_names                 = private_service_connection.value.subresource_names
+      request_message                   = private_service_connection.value.is_manual_connection == null && private_service_connection.value.request_message == null ? "This is a manual private endpoint connection for ${each.value.private_endpoint_name}" : private_service_connection.value.request_message
     }
   }
 
   dynamic "private_dns_zone_group" {
     for_each = each.value.private_dns_zone_group != null ? [each.value.private_dns_zone_group] : []
     content {
-      name                 = lookup(private_dns_zone_group.value, "name", null)
-      private_dns_zone_ids = lookup(private_dns_zone_group.value, "private_dns_zone_ids", [])
+      name                 = private_dns_zone_group.value.name
+      private_dns_zone_ids = private_dns_zone_group.value.private_dns_zone_ids
     }
   }
 
   dynamic "ip_configuration" {
     for_each = each.value.ip_configuration != null ? [each.value.ip_configuration] : []
     content {
-      name               = lookup(ip_configuration.value, "name", null)
-      private_ip_address = lookup(ip_configuration.value, "private_ip_address", null)
-      subresource_name   = lookup(ip_configuration.value, "subresource_name", null)
-      member_name        = lookup(ip_configuration.value, "member_name", null)
+      name               = ip_configuration.value.name
+      private_ip_address = ip_configuration.value.private_ip_address
+      subresource_name   = ip_configuration.value.subresource_name
+      member_name        = ip_configuration.value.member_name
     }
   }
+}
+
+resource "azurerm_application_security_group" "pep_asg" {
+  for_each = { for idx, pe in var.private_endpoints : idx => pe if pe.create_asg == true }
+
+  name                = each.value.asg_name != null ? each.value.asg_name : "asg-${each.value.private_endpoint_name}"
+  location            = azurerm_private_endpoint.this[each.key].location
+  resource_group_name = azurerm_private_endpoint.this[each.key].resource_group_name
+  tags                = azurerm_private_endpoint.this[each.key].tags
+}
+
+resource "azurerm_private_endpoint_application_security_group_association" "pep_asg_association" {
+  for_each                      = { for idx, pe in var.private_endpoints : idx => pe if pe.create_asg == true && pe.create_asg_association == true }
+  private_endpoint_id           = azurerm_private_endpoint.this[each.key].id
+  application_security_group_id = azurerm_application_security_group.pep_asg[each.key].id
 }

@@ -7,9 +7,13 @@ variable "private_endpoints" {
     subnet_id                     = string
     custom_network_interface_name = optional(string, null)
     tags                          = optional(map(string), {})
+    create_asg                    = optional(bool, false)
+    asg_name                      = optional(string)
+    create_asg_association        = optional(bool, false)
+
     private_service_connection = optional(object({
       name                              = optional(string)
-      is_manual_connection              = optional(bool, true)
+      is_manual_connection              = optional(bool, false)
       private_connection_resource_id    = optional(string)
       private_connection_resource_alias = optional(string)
       subresource_names                 = optional(list(string))
