@@ -1,12 +1,12 @@
 variable "private_endpoints" {
   description = "The databricks workspaces to create"
   type = list(object({
-    private_endpoint_name = string
-    location             = optional(string, "uksouth")
-    rg_name              = string
-    subnet_id            = string
+    private_endpoint_name         = string
+    location                      = optional(string, "uksouth")
+    rg_name                       = string
+    subnet_id                     = string
     custom_network_interface_name = optional(string, null)
-    tags                 = optional(map(string), {})
+    tags                          = optional(map(string), {})
     private_service_connection = optional(object({
       name                              = optional(string)
       is_manual_connection              = optional(bool, true)
@@ -24,7 +24,7 @@ variable "private_endpoints" {
       private_ip_address = optional(string)
       subresource_name   = optional(string)
       member_name        = optional(string)
-  }))
+    }))
   }))
 }
 

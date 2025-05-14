@@ -16,7 +16,7 @@ resource "azurerm_private_endpoint" "this" {
       private_connection_resource_id    = lookup(private_service_connection.value, "private_connection_resource_id", null)
       private_connection_resource_alias = lookup(private_service_connection.value, "private_connection_resource_alias", null)
       subresource_names                 = lookup(private_service_connection.value, "subresource_names", [])
-      request_message = private_service_connection.value.is_manual_connection && lookup(private_service_connection.value, "request_message", null) == null ? "This is a manual private endpoint connection for ${each.value.private_endpoint_name}" : lookup(private_service_connection.value, "request_message", null)
+      request_message                   = private_service_connection.value.is_manual_connection && lookup(private_service_connection.value, "request_message", null) == null ? "This is a manual private endpoint connection for ${each.value.private_endpoint_name}" : lookup(private_service_connection.value, "request_message", null)
     }
   }
 
