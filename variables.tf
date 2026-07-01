@@ -1,100 +1,85 @@
+variable "location" {
+  description = "Azure region for the private endpoints."
+  type        = string
+}
+
+variable "private_dns_zone_ids" {
+  description = "Map of subresource name (for example vault, blob, file, sqlServer) to the private DNS zone resource id to use for it (typically your hub's private DNS zones). Used to auto-resolve a private endpoint's DNS zone group when auto_dns_zone_group is true."
+  type        = map(string)
+  default     = {}
+}
+
 variable "private_endpoints" {
-  description = "The databricks workspaces to create"
-  type = list(object({
-    private_endpoint_name         = string
-    location                      = optional(string, "uksouth")
-    rg_name                       = string
+  description = <<-EOT
+    Private endpoints to create, keyed by a logical name.
+
+    name defaults to pep-<subresource>-<target resource> (the target resource name is parsed from the
+    connection id) and custom_network_interface_name to nic-pep-<...>.
+
+    DNS: give private_dns_zone_group explicitly, or set auto_dns_zone_group = true to look the zone id up
+    by subresource from the module-level private_dns_zone_ids map. Set create_asg = true to also create an
+    application security group and associate the endpoint with it.
+  EOT
+  type = map(object({
     subnet_id                     = string
-    custom_network_interface_name = optional(string, null)
-    tags                          = optional(map(string), {})
+    name                          = optional(string)
+    custom_network_interface_name = optional(string)
+    auto_dns_zone_group           = optional(bool, false)
     create_asg                    = optional(bool, false)
     asg_name                      = optional(string)
-    create_asg_association        = optional(bool, false)
 
-    private_service_connection = optional(object({
+    private_service_connection = object({
       name                              = optional(string)
       is_manual_connection              = optional(bool, false)
       private_connection_resource_id    = optional(string)
       private_connection_resource_alias = optional(string)
       subresource_names                 = optional(list(string))
       request_message                   = optional(string)
-    }))
+    })
+
     private_dns_zone_group = optional(object({
-      name                 = optional(string)
-      private_dns_zone_ids = optional(list(string))
+      name                 = optional(string, "default")
+      private_dns_zone_ids = list(string)
     }))
-    ip_configuration = optional(object({
-      name               = optional(string)
-      private_ip_address = optional(string)
+
+    ip_configurations = optional(list(object({
+      name               = string
+      private_ip_address = string
       subresource_name   = optional(string)
       member_name        = optional(string)
-    }))
+    })), [])
   }))
+  default = {}
+
+  validation {
+    condition = alltrue([
+      for pe in values(var.private_endpoints) :
+      (pe.private_service_connection.private_connection_resource_id != null) != (pe.private_service_connection.private_connection_resource_alias != null)
+    ])
+    error_message = "Each private_service_connection must set exactly one of private_connection_resource_id or private_connection_resource_alias."
+  }
+
+  validation {
+    condition = alltrue([
+      for pe in values(var.private_endpoints) :
+      pe.private_service_connection.is_manual_connection ? true : (pe.private_service_connection.subresource_names != null && length(coalesce(pe.private_service_connection.subresource_names, [])) > 0)
+    ])
+    error_message = "A non-manual private_service_connection must set subresource_names (for example [\"vault\"] or [\"blob\"])."
+  }
 }
 
-variable "subresource_names" {
-  type        = map(string)
-  description = "The sub resource names of private endpoints found at https://learn.microsoft.com/en-gb/azure/private-link/private-endpoint-overview#private-link-resource, not used, but provided for lookup option"
-  default = {
-    "Microsoft.Appconfiguration/configurationStores"         = "configurationStores"
-    "Microsoft.Automation/automationAccounts"                = "Webhook, DSCAndHybridWorker"
-    "Microsoft.AzureCosmosDB/databaseAccounts"               = "SQL, MongoDB, Cassandra, Gremlin, Table"
-    "Microsoft.Batch/batchAccounts"                          = "batchAccount, nodeManagement"
-    "Microsoft.Cache/Redis"                                  = "redisCache"
-    "Microsoft.Cache/redisEnterprise"                        = "redisEnterprise"
-    "Microsoft.CognitiveServices/accounts"                   = "account"
-    "Microsoft.Compute/diskAccesses"                         = "managed disk"
-    "Microsoft.ContainerRegistry/registries"                 = "registry"
-    "Microsoft.ContainerService/managedClusters"             = "management"
-    "Microsoft.DataFactory/factories"                        = "dataFactory"
-    "Microsoft.Kusto/clusters"                               = "cluster"
-    "Microsoft.DBforMariaDB/servers"                         = "mariadbServer"
-    "Microsoft.DBforMySQL/servers"                           = "mysqlServer"
-    "Microsoft.DBforMySQL/flexibleServers"                   = "mysqlServer"
-    "Microsoft.DBforPostgreSQL/servers"                      = "postgresqlServer"
-    "Microsoft.DBforPostgreSQL/flexibleServers"              = "postgresqlServer"
-    "Microsoft.Devices/provisioningServices"                 = "iotDps"
-    "Microsoft.Devices/IotHubs"                              = "iotHub"
-    "Microsoft.IoTCentral/IoTApps"                           = "IoTApps"
-    "Microsoft.DigitalTwins/digitalTwinsInstances"           = "API"
-    "Microsoft.EventGrid/domains"                            = "domain"
-    "Microsoft.EventGrid/topics"                             = "topic"
-    "Microsoft.EventHub/namespaces"                          = "namespace"
-    "Microsoft.HDInsight/clusters"                           = "cluster"
-    "Microsoft.HealthcareApis/services"                      = "fhir"
-    "Microsoft.Keyvault/managedHSMs"                         = "HSM"
-    "Microsoft.KeyVault/vaults"                              = "vault"
-    "Microsoft.MachineLearningServices/workspaces"           = "amlworkspace"
-    "Microsoft.MachineLearningServices/registries"           = "amlregistry"
-    "Microsoft.Migrate/assessmentProjects"                   = "project"
-    "Microsoft.Network/applicationgateways"                  = "application gateway"
-    "Microsoft.Network/privateLinkServices"                  = "empty"
-    "Microsoft.PowerBI/privateLinkServicesForPowerBI"        = "Power BI"
-    "Microsoft.Purview/accounts"                             = "account, portal"
-    "Microsoft.RecoveryServices/vaults"                      = "AzureBackup, AzureSiteRecovery"
-    "Microsoft.Relay/namespaces"                             = "namespace"
-    "Microsoft.Search/searchServices"                        = "searchService"
-    "Microsoft.ServiceBus/namespaces"                        = "namespace"
-    "Microsoft.SignalRService/SignalR"                       = "signalr"
-    "Microsoft.SignalRService/webPubSub"                     = "webpubsub"
-    "Microsoft.Sql/servers"                                  = "sqlServer"
-    "Microsoft.Sql/managedInstances"                         = "managedInstance"
-    "Microsoft.Storage/storageAccounts"                      = "blob, blob_secondary, table, table_secondary, queue, queue_secondary, file, file_secondary, web, web_secondary, dfs, dfs_secondary"
-    "Microsoft.StorageSync/storageSyncServices"              = "File Sync Service"
-    "Microsoft.Synapse/privateLinkHubs"                      = "web"
-    "Microsoft.Synapse/workspaces"                           = "Sql, SqlOnDemand, Dev"
-    "Microsoft.Web/hostingEnvironments"                      = "hosting environment"
-    "Microsoft.Web/sites"                                    = "sites"
-    "Microsoft.Web/staticSites"                              = "staticSites"
-    "Microsoft.Media/mediaservices"                          = "keydelivery, liveevent, streamingendpoint"
-    "Microsoft.Authorization/resourceManagementPrivateLinks" = "ResourceManagement"
-    "Microsoft.Databricks/workspaces"                        = "databricks_ui_api, browser_authentication"
-    "Microsoft.Insights/privatelinkscopes"                   = "azuremonitor"
-    "Microsoft.DocumentDb/mongoClusters"                     = "mongoCluster"
-    "Microsoft.DBforPostgreSQL/serverGroupsv2"               = "coordinator"
-    "Microsoft.DesktopVirtualization/hostpools"              = "connection"
-    "Microsoft.DesktopVirtualization/workspaces"             = "feed"
-    "Microsoft.Attestation/attestationProviders"             = "standard"
-    "Microsoft.DeviceUpdate/accounts"                        = "DeviceUpdate"
+variable "resource_group_id" {
+  description = "Resource id of the resource group to create the private endpoints in. The name and subscription are parsed from it (pass the rg module's ids output)."
+  type        = string
+
+  validation {
+    condition     = try(provider::azurerm::parse_resource_id(var.resource_group_id).resource_type, "") == "resourceGroups"
+    error_message = "resource_group_id must be a resource group id of the form /subscriptions/<sub>/resourceGroups/<name>."
   }
+}
+
+variable "tags" {
+  description = "Tags to apply to the private endpoints."
+  type        = map(string)
+  default     = {}
 }

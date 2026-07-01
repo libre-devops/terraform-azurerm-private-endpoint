@@ -1,35 +1,41 @@
+# Private endpoints keyed by a logical name. Names default to pep-<subresource>-<target resource> (the
+# target resource name is parsed from the connection id) and the NIC to nic-pep-.... The private DNS
+# zone group is either given explicitly or auto-resolved from the module-level private_dns_zone_ids map
+# by subresource (the portable form of a central-hub DNS lookup). Optionally create an application
+# security group and associate the endpoint with it. The resource group is passed by id and parsed.
+
 resource "azurerm_private_endpoint" "this" {
-  for_each = { for idx, pe in var.private_endpoints : idx => pe }
+  for_each = local.resolved
 
-  name                          = each.value.private_endpoint_name
-  location                      = each.value.location
-  resource_group_name           = each.value.rg_name
+  resource_group_name = local.resource_group_name
+  location            = var.location
+  tags                = var.tags
+
+  name                          = each.value.name
   subnet_id                     = each.value.subnet_id
-  custom_network_interface_name = each.value.custom_network_interface_name
-  tags                          = each.value.tags
+  custom_network_interface_name = each.value.nic_name
 
-  dynamic "private_service_connection" {
-    for_each = each.value.private_service_connection != null ? [each.value.private_service_connection] : []
-    content {
-      name                              = private_service_connection.value.name == null ? "pvsvccon-${each.value.private_endpoint_name}" : null
-      is_manual_connection              = private_service_connection.value.is_manual_connection
-      private_connection_resource_id    = private_service_connection.value.private_connection_resource_id
-      private_connection_resource_alias = private_service_connection.value.private_connection_resource_alias
-      subresource_names                 = private_service_connection.value.subresource_names
-      request_message                   = private_service_connection.value.is_manual_connection == null && private_service_connection.value.request_message == null ? "This is a manual private endpoint connection for ${each.value.private_endpoint_name}" : private_service_connection.value.request_message
-    }
+  private_service_connection {
+    name                              = coalesce(each.value.private_service_connection.name, "pvsc-${each.value.name}")
+    is_manual_connection              = each.value.private_service_connection.is_manual_connection
+    private_connection_resource_id    = each.value.private_service_connection.private_connection_resource_id
+    private_connection_resource_alias = each.value.private_service_connection.private_connection_resource_alias
+    subresource_names                 = each.value.private_service_connection.subresource_names
+    request_message                   = each.value.private_service_connection.is_manual_connection ? each.value.private_service_connection.request_message : null
   }
 
   dynamic "private_dns_zone_group" {
-    for_each = each.value.private_dns_zone_group != null ? [each.value.private_dns_zone_group] : []
+    for_each = each.value.dns_zone_ids != null ? [1] : []
+
     content {
-      name                 = private_dns_zone_group.value.name
-      private_dns_zone_ids = private_dns_zone_group.value.private_dns_zone_ids
+      name                 = each.value.dns_zone_name
+      private_dns_zone_ids = each.value.dns_zone_ids
     }
   }
 
   dynamic "ip_configuration" {
-    for_each = each.value.ip_configuration != null ? [each.value.ip_configuration] : []
+    for_each = each.value.ip_configurations
+
     content {
       name               = ip_configuration.value.name
       private_ip_address = ip_configuration.value.private_ip_address
@@ -39,17 +45,19 @@ resource "azurerm_private_endpoint" "this" {
   }
 }
 
-resource "azurerm_application_security_group" "pep_asg" {
-  for_each = { for idx, pe in var.private_endpoints : idx => pe if pe.create_asg == true }
+resource "azurerm_application_security_group" "this" {
+  for_each = { for k, pe in local.resolved : k => pe if pe.create_asg }
 
-  name                = each.value.asg_name != null ? each.value.asg_name : "asg-${each.value.private_endpoint_name}"
-  location            = azurerm_private_endpoint.this[each.key].location
-  resource_group_name = azurerm_private_endpoint.this[each.key].resource_group_name
-  tags                = azurerm_private_endpoint.this[each.key].tags
+  resource_group_name = local.resource_group_name
+  location            = var.location
+  tags                = var.tags
+
+  name = coalesce(each.value.asg_name, "asg-${each.value.name}")
 }
 
-resource "azurerm_private_endpoint_application_security_group_association" "pep_asg_association" {
-  for_each                      = { for idx, pe in var.private_endpoints : idx => pe if pe.create_asg == true && pe.create_asg_association == true }
+resource "azurerm_private_endpoint_application_security_group_association" "this" {
+  for_each = { for k, pe in local.resolved : k => pe if pe.create_asg }
+
   private_endpoint_id           = azurerm_private_endpoint.this[each.key].id
-  application_security_group_id = azurerm_application_security_group.pep_asg[each.key].id
+  application_security_group_id = azurerm_application_security_group.this[each.key].id
 }
