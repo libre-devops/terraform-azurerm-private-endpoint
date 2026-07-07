@@ -108,3 +108,45 @@ run "rejects_non_manual_without_subresource" {
 
   expect_failures = [var.private_endpoints]
 }
+
+run "allows_a_private_link_service_connection_without_subresources" {
+  command = plan
+
+  variables {
+    private_endpoints = {
+      consumer = {
+        subnet_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ldo-uks-tst-pep-01/providers/Microsoft.Network/virtualNetworks/vnet-ldo-uks-tst-01/subnets/snet-pep"
+
+        private_service_connection = {
+          private_connection_resource_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ldo-uks-tst-pep-01/providers/Microsoft.Network/privateLinkServices/pl-ldo-uks-tst-001"
+          is_private_link_service        = true
+        }
+      }
+    }
+  }
+
+  assert {
+    condition     = azurerm_private_endpoint.this["consumer"].private_service_connection[0].subresource_names == null
+    error_message = "A PLS connection should send no subresource names."
+  }
+}
+
+run "rejects_a_private_link_service_connection_with_subresources" {
+  command = plan
+
+  variables {
+    private_endpoints = {
+      consumer = {
+        subnet_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ldo-uks-tst-pep-01/providers/Microsoft.Network/virtualNetworks/vnet-ldo-uks-tst-01/subnets/snet-pep"
+
+        private_service_connection = {
+          private_connection_resource_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ldo-uks-tst-pep-01/providers/Microsoft.Network/privateLinkServices/pl-ldo-uks-tst-001"
+          is_private_link_service        = true
+          subresource_names              = ["vault"]
+        }
+      }
+    }
+  }
+
+  expect_failures = [var.private_endpoints]
+}

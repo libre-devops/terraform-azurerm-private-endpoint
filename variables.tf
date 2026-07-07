@@ -34,7 +34,10 @@ variable "private_endpoints" {
       private_connection_resource_id    = optional(string)
       private_connection_resource_alias = optional(string)
       subresource_names                 = optional(list(string))
-      request_message                   = optional(string)
+      # A private link service target takes NO subresource names (it is the one target kind
+      # without groupIds); set this instead of subresource_names to state the intent.
+      is_private_link_service = optional(bool, false)
+      request_message         = optional(string)
     })
 
     private_dns_zone_group = optional(object({
@@ -62,9 +65,17 @@ variable "private_endpoints" {
   validation {
     condition = alltrue([
       for pe in values(var.private_endpoints) :
-      pe.private_service_connection.is_manual_connection ? true : (pe.private_service_connection.subresource_names != null && length(coalesce(pe.private_service_connection.subresource_names, [])) > 0)
+      pe.private_service_connection.is_manual_connection || pe.private_service_connection.is_private_link_service ? true : (pe.private_service_connection.subresource_names != null && length(coalesce(pe.private_service_connection.subresource_names, [])) > 0)
     ])
-    error_message = "A non-manual private_service_connection must set subresource_names (for example [\"vault\"] or [\"blob\"])."
+    error_message = "A non-manual private_service_connection must set subresource_names (for example [\"vault\"] or [\"blob\"]), or declare is_private_link_service = true for a PLS target, which takes none."
+  }
+
+  validation {
+    condition = alltrue([
+      for pe in values(var.private_endpoints) :
+      !pe.private_service_connection.is_private_link_service || length(coalesce(pe.private_service_connection.subresource_names, [])) == 0
+    ])
+    error_message = "A private link service connection must not set subresource_names; a PLS has no groupIds."
   }
 }
 

@@ -10,12 +10,13 @@ check "has_private_endpoints" {
 }
 
 # A private endpoint without DNS resolution usually cannot be reached by name. Warn when an endpoint has
-# neither an explicit nor an auto-resolvable private DNS zone group (unless the connection is manual).
+# neither an explicit nor an auto-resolvable private DNS zone group (unless the connection is manual,
+# or targets a private link service, which has no privatelink zone: consumers use the endpoint IP).
 check "endpoints_resolve_dns" {
   assert {
     condition = alltrue([
       for pe in values(local.resolved) :
-      pe.private_service_connection.is_manual_connection || pe.dns_zone_ids != null
+      pe.private_service_connection.is_manual_connection || pe.private_service_connection.is_private_link_service || pe.dns_zone_ids != null
     ])
     error_message = "A private endpoint has no private DNS zone group and none could be auto-resolved (subresource not in private_dns_zone_ids). Clients will not resolve it by name; set private_dns_zone_group, add the subresource to private_dns_zone_ids with auto_dns_zone_group = true, or manage DNS elsewhere."
   }

@@ -20,8 +20,9 @@ resource "azurerm_private_endpoint" "this" {
     is_manual_connection              = each.value.private_service_connection.is_manual_connection
     private_connection_resource_id    = each.value.private_service_connection.private_connection_resource_id
     private_connection_resource_alias = each.value.private_service_connection.private_connection_resource_alias
-    subresource_names                 = each.value.private_service_connection.subresource_names
-    request_message                   = each.value.private_service_connection.is_manual_connection ? each.value.private_service_connection.request_message : null
+    # A PLS target sends no groupIds; null keeps the payload clean rather than an empty list.
+    subresource_names = each.value.private_service_connection.is_private_link_service ? null : each.value.private_service_connection.subresource_names
+    request_message   = each.value.private_service_connection.is_manual_connection ? each.value.private_service_connection.request_message : null
   }
 
   dynamic "private_dns_zone_group" {
